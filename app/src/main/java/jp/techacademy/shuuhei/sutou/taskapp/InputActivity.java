@@ -1,5 +1,7 @@
 package jp.techacademy.shuuhei.sutou.taskapp;
 
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.renderscript.ScriptGroup;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -47,15 +49,16 @@ public class InputActivity extends AppCompatActivity {
     private View.OnClickListener mOnTimeClickListener = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
-            TimePickerDialog timePickerDialog = new TimePickerDialog(InputActivity.this, new TimePickerDialog.OnTimeSetListener() {
-                @Override
-                public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
-                    mHour = hourOfDay;
-                    mMinute = minute;
-                    String timeString = String.format("%02d", mHour) + ":" + String.format("%02d", mMinute);
-                    mTimeButton.setText(timeString);
-                }
-            }, mHour, mMinute, false);
+            TimePickerDialog timePickerDialog = new TimePickerDialog(InputActivity.this,
+                    new TimePickerDialog.OnTimeSetListener() {
+                        @Override
+                        public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
+                            mHour = hourOfDay;
+                            mMinute = minute;
+                            String timeString = String.format("%02d", mHour) + ":" + String.format("%02d", mMinute);
+                            mTimeButton.setText(timeString);
+                        }
+                    }, mHour, mMinute, false);
             timePickerDialog.show();
         }
     };
@@ -82,8 +85,8 @@ public class InputActivity extends AppCompatActivity {
         mDateButton = (Button)findViewById(R.id.date_button);
         mDateButton.setOnClickListener(mOnDateClickListener);
         mTimeButton = (Button)findViewById(R.id.times_button);
-        mTimeButton.setOnClickListener(mOnDateClickListener);
-        findViewById(R.id.done_button).setOnClickListener(mOnDateClickListener);
+        mTimeButton.setOnClickListener(mOnTimeClickListener);
+        findViewById(R.id.done_button).setOnClickListener(mOnDoneClickListener);
         mTitleEdit = (EditText)findViewById(R.id.title_edit_text);
         mContentEdit = (EditText)findViewById(R.id.content_edit_text);
 
@@ -119,20 +122,21 @@ public class InputActivity extends AppCompatActivity {
         }
     }
 
-    private void addTask(){
+    private void addTask() {
         Realm realm = Realm.getDefaultInstance();
 
         realm.beginTransaction();
 
-        if(mTask == null){
+        if (mTask == null) {
+            // 新規作成の場合
             mTask = new Task();
 
             RealmResults<Task> taskRealmResults = realm.where(Task.class).findAll();
 
             int identifier;
-            if(taskRealmResults.max("id") != null){
+            if (taskRealmResults.max("id") != null) {
                 identifier = taskRealmResults.max("id").intValue() + 1;
-            }else{
+            } else {
                 identifier = 0;
             }
             mTask.setId(identifier);
@@ -141,12 +145,9 @@ public class InputActivity extends AppCompatActivity {
         String title = mTitleEdit.getText().toString();
         String content = mContentEdit.getText().toString();
 
-        Log.d("title", "" + title + "");
-        Log.d("content", "" + content + "");
-
         mTask.setTitle(title);
         mTask.setContents(content);
-        GregorianCalendar calendar = new GregorianCalendar(mYear,mMonth, mDay, mHour, mMinute);
+        GregorianCalendar calendar = new GregorianCalendar(mYear,mMonth,mDay,mHour,mMinute);
         Date date = calendar.getTime();
         mTask.setDate(date);
 
@@ -154,5 +155,17 @@ public class InputActivity extends AppCompatActivity {
         realm.commitTransaction();
 
         realm.close();
+
+        Intent resultIntent = new Intent(getApplicationContext(), TaskAlarmReceiver.class);
+        resultIntent.putExtra(MainActivity.EXTRA_TASK, mTask.getId());
+        PendingIntent resultPendingIntent = PendingIntent.getBroadcast(
+                this,
+                mTask.getId(),
+                resultIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT
+        );
+
+        AlarmManager alarmManager = (AlarmManager)getSystemService(ALARM_SERVICE);
+        alarmManager.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), resultPendingIntent);
     }
 }

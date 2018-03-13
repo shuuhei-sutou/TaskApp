@@ -2,12 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="jp.techacademy.shuuhei.sutou.taskapp">
 
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+
     <application
         android:name=".TaskApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity
@@ -29,6 +30,9 @@
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="jp.techacademy.shuuhei.sutou.taskapp.MainActivity"/>
         </activity>
+
+        <receiver android:name=".TaskAlarmReceiver"/>
+
     </application>
 
 </manifest>
