@@ -68,16 +68,16 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 String category = mEditText.getText().toString();
-                RealmResults<Task> result = mRealm.where(Task.class).equalTo("title", category).findAll();
+                RealmResults<Task> result = mRealm.where(Task.class).equalTo("category", category).findAll();
+
+                reloadCategoryListView(category);
 
                 if(result.size() == 0){
-                    reloadCategory0ListView();
-                    button.setEnabled(true);
-                    button.setText("検索");
-                }else{
-                    reloadCategoryListView(category);
                     button.setEnabled(false);
                     button.setText("クリア押す");
+                }else{
+                    button.setEnabled(true);
+                    button.setText("検索");
                 }
             }
         });
@@ -86,7 +86,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
 
-                reloadCategory0ListView();
+                reloadListView();
                 button.setEnabled(true);
                 button.setText("検索");
                 mEditText.setText("");
@@ -170,15 +170,8 @@ public class MainActivity extends AppCompatActivity {
         mTaskAdapter.notifyDataSetChanged();
     }
 
-    private void reloadCategory0ListView(){
-        RealmResults<Task>taskRealmResults = mRealm.where(Task.class).findAllSorted("date", Sort.DESCENDING);
-        mTaskAdapter.setTaskList(mRealm.copyFromRealm(taskRealmResults));
-        mListView.setAdapter(mTaskAdapter);
-        mTaskAdapter.notifyDataSetChanged();
-    }
-
     private void reloadCategoryListView(String category){
-        RealmResults<Task>taskRealmResults = mRealm.where(Task.class).equalTo("title", category).findAllSorted("date", Sort.DESCENDING);
+        RealmResults<Task>taskRealmResults = mRealm.where(Task.class).equalTo("category", category).findAllSorted("date", Sort.DESCENDING);
         mTaskAdapter.setTaskList(mRealm.copyFromRealm(taskRealmResults));
         mListView.setAdapter(mTaskAdapter);
         mTaskAdapter.notifyDataSetChanged();
