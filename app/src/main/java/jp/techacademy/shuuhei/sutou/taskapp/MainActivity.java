@@ -1,17 +1,23 @@
 package jp.techacademy.shuuhei.sutou.taskapp;
 
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
+import android.renderscript.ScriptGroup;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AlertDialog;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.AdapterView;
 import android.widget.ListView;
+import android.widget.Button;
+import android.widget.EditText;
 
 import java.util.Date;
 
@@ -19,6 +25,7 @@ import io.realm.Realm;
 import io.realm.RealmChangeListener;
 import io.realm.RealmResults;
 import io.realm.Sort;
+import io.realm.RealmQuery;
 
 public class MainActivity extends AppCompatActivity {
     public final static String EXTRA_TASK = "jp.techacademy.shuuhei.sutou.taskapp.TASK";
@@ -32,6 +39,7 @@ public class MainActivity extends AppCompatActivity {
     };
     private ListView mListView;
     private TaskAdapter mTaskAdapter;
+    private EditText mEditText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,16 +56,54 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        final Button button = (Button) findViewById(R.id.button);
+        final Button buttonClear = (Button) findViewById(R.id.buttonClear);
+        final EditText mEditText = (EditText) findViewById(R.id.category_edit_text);
+
+        // Realmの設定
         mRealm = Realm.getDefaultInstance();
         mRealm.addChangeListener(mRealmListener);
 
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String category = mEditText.getText().toString();
+                RealmResults<Task> result = mRealm.where(Task.class).equalTo("title", category).findAll();
+
+                if(result.size() == 0){
+                    reloadCategory0ListView();
+                    button.setEnabled(true);
+                    button.setText("検索");
+                }else{
+                    reloadCategoryListView(category);
+                    button.setEnabled(false);
+                    button.setText("クリア押す");
+                }
+            }
+        });
+
+        buttonClear.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                reloadCategory0ListView();
+                button.setEnabled(true);
+                button.setText("検索");
+                mEditText.setText("");
+
+            }
+        });
+
+        // ListViewの設定
         mTaskAdapter = new TaskAdapter(MainActivity.this);
         mListView = (ListView) findViewById(R.id.listView1);
 
+        // ListViewをタップしたときの処理
         mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                Task task = (Task)parent.getAdapter().getItem(position);
+                // 入力・編集する画面に遷移させる
+                Task task = (Task) parent.getAdapter().getItem(position);
 
                 Intent intent = new Intent(MainActivity.this, InputActivity.class);
                 intent.putExtra(EXTRA_TASK, task.getId());
@@ -66,12 +112,16 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        // ListViewを長押ししたときの処理
         mListView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
             @Override
             public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
 
-                final Task task = (Task)parent.getAdapter().getItem(position);
+                // タスクを削除する
 
+                final Task task = (Task) parent.getAdapter().getItem(position);
+
+                // ダイアログを表示する
                 AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
 
                 builder.setTitle("削除");
@@ -86,8 +136,18 @@ public class MainActivity extends AppCompatActivity {
                         results.deleteAllFromRealm();
                         mRealm.commitTransaction();
 
-                        reloadListView();
+                        Intent resultIntent = new Intent(getApplicationContext(), TaskAlarmReceiver.class);
+                        PendingIntent resultPendingIntent = PendingIntent.getBroadcast(
+                                MainActivity.this,
+                                task.getId(),
+                                resultIntent,
+                                PendingIntent.FLAG_UPDATE_CURRENT
+                        );
 
+                        AlarmManager alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
+                        alarmManager.cancel(resultPendingIntent);
+
+                        reloadListView();
                     }
                 });
                 builder.setNegativeButton("CANCEL", null);
@@ -97,14 +157,28 @@ public class MainActivity extends AppCompatActivity {
 
                 return true;
             }
-
         });
 
         reloadListView();
     }
 
+
     private void reloadListView(){
         RealmResults<Task>taskRealmResults = mRealm.where(Task.class).findAllSorted("date", Sort.DESCENDING);
+        mTaskAdapter.setTaskList(mRealm.copyFromRealm(taskRealmResults));
+        mListView.setAdapter(mTaskAdapter);
+        mTaskAdapter.notifyDataSetChanged();
+    }
+
+    private void reloadCategory0ListView(){
+        RealmResults<Task>taskRealmResults = mRealm.where(Task.class).findAllSorted("date", Sort.DESCENDING);
+        mTaskAdapter.setTaskList(mRealm.copyFromRealm(taskRealmResults));
+        mListView.setAdapter(mTaskAdapter);
+        mTaskAdapter.notifyDataSetChanged();
+    }
+
+    private void reloadCategoryListView(String category){
+        RealmResults<Task>taskRealmResults = mRealm.where(Task.class).equalTo("title", category).findAllSorted("date", Sort.DESCENDING);
         mTaskAdapter.setTaskList(mRealm.copyFromRealm(taskRealmResults));
         mListView.setAdapter(mTaskAdapter);
         mTaskAdapter.notifyDataSetChanged();
